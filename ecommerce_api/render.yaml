@@ -1,22 +1,20 @@
 services:
   - type: web
-    name: ecommerce-api
+    name: alx-ecommerce-api
     env: python
     plan: free
-    rootdir: ecommerce-api
     buildCommand: "./build.sh"
-    startCommand: "python -m gunicorn ecommerce_api.wsgi:application --bind 0.0.0.0:$PORT --workers 2"
+    startCommand: "gunicorn ecommerce_api.wsgi:application --bind 0.0.0.0:$PORT"
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: ecommerce_api.settings
       - key: SECRET_KEY
         generateValue: true
       - key: WEB_CONCURRENCY
-        value: "2"
+        value: "4"
       - key: PYTHON_VERSION
         value: "3.11.0"
       - key: PYTHONPATH
         value: "."
       - key: PYTHONUNBUFFERED
         value: "1"
-    region: oregon

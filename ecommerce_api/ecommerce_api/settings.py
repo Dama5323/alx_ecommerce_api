@@ -10,56 +10,76 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 import dj_database_url
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Quick-start development settings
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-fallback-key-for-development-only')
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-fallback-key')
-
-# SECURITY WARNING: don't run with debug turned on in production!
+# Detect environment
+ON_RENDER = os.environ.get('RENDER', False)
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+IS_TESTING = 'test' in sys.argv or 'pytest' in sys.argv[0] or os.environ.get('TESTING') == 'True'
 
-ALLOWED_HOSTS = ['localhost', 'Damaris35.pythonanywhere.com','127.0.0.1', '.onrender.com']
+# Security: Force debug mode off in production
+if ON_RENDER and DEBUG:
+    DEBUG = False
 
+ALLOWED_HOSTS = [
+    'alx-ecommerce-cart.onrender.com',
+    'localhost',
+    '127.0.0.1',
+]
+
+# Add Render external hostname if available
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+# CSRF and CORS settings
+CSRF_TRUSTED_ORIGINS = [
+    'https://alx-ecommerce-cart.onrender.com',
+    'https://*.render.com',
+]
+if RENDER_EXTERNAL_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
 
 # Application definition
-
 INSTALLED_APPS = [
+    'whitenoise.runserver_nostatic',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework.authtoken',
     'django_filters',
+    'taggit', 
+    'drf_spectacular',
+    
+    # Local apps
     'users.apps.UsersConfig',
     'products.apps.ProductsConfig',
     'orders.apps.OrdersConfig',
     'cart.apps.CartConfig',
     'inventory.apps.InventoryConfig',
     'promotions.apps.PromotionsConfig',
-    'taggit', 
-    'drf_spectacular',
-    'whitenoise.runserver_nostatic',
 ]
 
 MIDDLEWARE = [
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -94,85 +114,46 @@ TAGGIT_CASE_INSENSITIVE = True
 
 WSGI_APPLICATION = 'ecommerce_api.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-# Database configuration
+# Database configuration - Prioritize DATABASE_URL for Render
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'ecommerce_local'),
-        'USER': os.getenv('DB_USER', 'djangouser'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'securepassword123'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
-        'OPTIONS': {
-           'sslmode': 'disable'
-        }
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL', 'postgresql://djangouser:securepassword123@localhost:5432/ecommerce_local'),
+        conn_max_age=600,
+        conn_health_checks=True,
+        ssl_require=not DEBUG and ON_RENDER
+    )
 }
 
-
-if os.getenv('DATABASE_URL'):
-    DATABASES['default'] = dj_database_url.config(
-        conn_max_age=600,
-        ssl_require=not DEBUG
-  )
-
-
 # Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
 # Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
+# Static files configuration
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 
 # Authentication settings
 AUTH_USER_MODEL = 'users.CustomUser'
 
-# settings.py
+# Django REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
@@ -189,9 +170,10 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
-     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
+# API Documentation settings
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Ecommerce API',
     'DESCRIPTION': 'A powerful REST API for ecommerce applications',
@@ -199,12 +181,13 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
 }
 
+# JWT settings
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
-# Celery settings (if you're using Celery)
+# Celery settings
 CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
@@ -212,55 +195,69 @@ CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_BEAT_SCHEDULE = {
     'deactivate-expired-promotions': {
         'task': 'promotions.tasks.deactivate_expired_promotions_task',
-        'schedule': 3600.0,  # Run every hour
+        'schedule': 3600.0,
     },
     'deactivate-expired-coupons': {
         'task': 'promotions.tasks.deactivate_expired_coupons_task',
-        'schedule': 3600.0,  # Run every hour
+        'schedule': 3600.0,
     },
     'deactivate-expired-banners': {
         'task': 'promotions.tasks.deactivate_expired_banners_task',
-        'schedule': 3600.0,  # Run every hour
+        'schedule': 3600.0,
     },
 }
 
-
-# Check if we're running tests
-IS_TESTING = 'test' in sys.argv or 'pytest' in sys.argv[0] or os.environ.get('TESTING') == 'True'
-
-# Security settings - only apply in production, not during testing
+# Security settings
 if not DEBUG and not IS_TESTING:
+    # Production security settings
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = True
-    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 else:
-    # For development and testing, use less restrictive settings
+    # Development/Testing settings
     CSRF_COOKIE_SECURE = False
     SESSION_COOKIE_SECURE = False
     SECURE_SSL_REDIRECT = False
-    # Set default values for security settings
-    SECURE_BROWSER_XSS_FILTER = False
-    SECURE_CONTENT_TYPE_NOSNIFF = False
-    X_FRAME_OPTIONS = 'SAMEORIGIN'
 
-
+# Logging configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
     },
     'root': {
         'handlers': ['console'],
-        'level': 'WARNING',
+        'level': 'INFO' if DEBUG else 'WARNING',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
+
+# Render-specific settings
+if ON_RENDER:
+    # Ensure static files are served correctly
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_MANIFEST_STRICT = False
+    WHITENOISE_ALLOW_ALL_ORIGINS = True
