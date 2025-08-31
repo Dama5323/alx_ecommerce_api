@@ -32,10 +32,11 @@ if ON_RENDER and DEBUG:
     DEBUG = False
 
 ALLOWED_HOSTS = [
-    'alx-ecommerce-cart.onrender.com',
     'localhost',
     '127.0.0.1',
+    '.onrender.com',  
 ]
+
 
 # Add Render external hostname if available
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
@@ -68,6 +69,7 @@ INSTALLED_APPS = [
     'taggit', 
     'drf_spectacular',
     
+    
     # Local apps
     'users.apps.UsersConfig',
     'products.apps.ProductsConfig',
@@ -76,6 +78,7 @@ INSTALLED_APPS = [
     'inventory.apps.InventoryConfig',
     'promotions.apps.PromotionsConfig',
 ]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

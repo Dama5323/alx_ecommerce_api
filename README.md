@@ -7,6 +7,9 @@
 ![Postman](https://img.shields.io/badge/Tested%20With-Postman-orange?logo=postman)
 ![Taggit](https://img.shields.io/badge/Django--Taggit-Enabled-lightgrey?logo=django)
 ![DRF Version](https://img.shields.io/badge/DRF-3.14-red)
+![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?logo=docker)
+![Postgresql](https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql)
+![Render](https://img.shields.io/badge/Deployed_on-Render-46E3B7?logo=render)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 ## Table of Contents
@@ -15,13 +18,12 @@
 - [Installation & Setup](#installation--setup)
 - [API Endpoints](#api-endpoints-overview)
 - [Postman Testing](#postman-testing-guide)
-- [License](#license)
-
+- [Deployment to Render](#deployment-to-render)
 
 ## Overview 
-This project is a fully functional E-commerce Product API built with Django and Django REST Framework. It provides a backend solution for managing products, allowing users to create, read, update, and delete product information efficiently.
+This project is a fully functional E-commerce Product API built with Django and Django REST Framework. It provides an efficient backend for managing product information, user authentication, orders, inventory, and promotions.
 
-The API is designed to be scalable, maintainable, and easy to integrate with front-end applications or other services. 
+The API is designed for scalability, ease of integration, and maintainability.
 
 **Key features include:**
 
@@ -33,7 +35,10 @@ The API is designed to be scalable, maintainable, and easy to integrate with fro
 
 - Testing & Validation: Ensures robust and reliable API behavior.
 
-This project serves as a foundation for building a full-fledged e-commerce platform and demonstrates best practices in backend development, API design, and software architecture.
+- Containerized Development: Full Docker setup with PostgreSQL
+
+- Cloud Deployment: Ready for deployment on Render platform
+
 
 ##  Features
 
@@ -58,18 +63,23 @@ This project serves as a foundation for building a full-fledged e-commerce platf
 
 - **Backend Framework**: Django 4.2+
 - **REST API**: Django REST Framework
-- **Database**: SQLite (development & production)
+- **Database**: Postgresql (development & production)
 - **Authentication**: JWT & Session Authentication
 - **API Documentation**: Swagger/OpenAPI 3.0
 - **Testing**: Postman
 - **Tagging**: django-taggit
+- **Containerization**: Docker & Docker Compose
+- **Deployment Platform**: Render
+
 
 ##  Installation & Setup
 
 ### Prerequisites
 - Python 3.8+
-- SQLite (included with Python)
+- Postgresql
 - pip (Python package manager)
+
+## 1. Setup (Without Docker)
 
 ### Step 1: Clone and Setup
 
@@ -134,6 +144,43 @@ python manage.py runserver
 # Server will be available at http://127.0.0.1:8000/
 # API documentation at http://127.0.0.1:8000/api/schema/
 ```
+
+## 2. Docker Development (Recommended)
+**Prerequisites**
+- Docker
+
+- Docker Compose
+
+## Step 1: Clone the repository
+```bash
+git clone <your-repo-url>
+cd ecommerce_api
+```
+
+## Step 2: Set up environment variables
+```bash
+cp .env.example .env
+# Edit .env with your settings
+```
+
+## Step 3: Build and start containers
+```bash
+docker-compose up --build
+```
+
+## Step 4: Run migrations and create superuser
+```bash
+# In a new terminal window:
+docker-compose exec app python manage.py migrate
+docker-compose exec app python manage.py createsuperuser
+```
+
+## Step 5: Access the application
+- API: http://localhost:8000
+
+- Admin: http://localhost:8000/admin
+
+- API Docs: http://localhost:8000/api/schema/
 
 ### API Endpoints Overview
 **Authentication Endpoints**
@@ -568,7 +615,7 @@ Content-Type: application/json
     "brand": 1,
     "status": "ACTIVE",
     "is_featured": true
-}
+} 
 ```
 
 5. **Partial Update Product (Admin Only)**
@@ -1455,3 +1502,204 @@ GET {{base_url}}/api/promotions/public/promotions/all_active/
 ```json
 GET {{base_url}}/api/promotions/public/promotions/for_product/{{product_id}}/
 ```
+
+
+### Deployment to Render
+**Prerequisites**
+
+- Render account
+
+- GitHub repository connected
+
+- Docker installed locally (for testing)
+
+## Step 1: Prepare for Deployment
+Update settings.py for production:
+```python
+# Ensure these settings are configured
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
+
+# Database configuration
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+    }
+}
+
+# Static files
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+```
+
+## Create render.yaml (optional but recommended):
+
+```yaml
+services:
+  - type: web
+    name: ecommerce-api
+    env: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "python manage.py runserver 0.0.0.0:8000"
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEB_CONCURRENCY
+        value: 4
+```
+
+## Create build.sh:
+```bash
+#!/usr/bin/env bash
+# build.sh
+set -o errexit
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Collect static files
+python manage.py collectstatic --noinput
+
+# Run migrations
+python manage.py migrate
+```
+
+## Step 2: Deploy to Render
+**Method 1: Using Render Dashboard**
+- Go to Render Dashboard
+
+- Click "New +" → "Web Service"
+
+- Connect your GitHub repository
+
+- Configure settings:
+
+    - Name: ecommerce-api
+
+    - Environment: Python 3
+
+    - Region: Choose closest to your users
+
+    - Branch: main (or your preferred branch)
+
+    - Root Directory: . (if at root)
+
+    - Build Command: pip install -r requirements.txt && python manage.py collectstatic --noinput
+
+    - Start Command: python manage.py runserver 0.0.0.0:8000
+
+**Method 2: Using Docker on Render**
+- Create a Dockerfile for production:
+
+```dockerfile
+FROM python:3.11-slim-bullseye
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set work directory
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy project
+COPY . .
+
+# Collect static files
+RUN python manage.py collectstatic --noinput
+
+# Expose port
+EXPOSE 8000
+
+# Run application
+CMD ["gunicorn", "your_project.wsgi:application", "--bind", "0.0.0.0:8000"]
+```
+
+2. **Deploy with Docker on Render:**
+
+- Select "Docker" as environment
+
+- Render will automatically build from Dockerfile
+
+## Step 3: Configure Environment Variables on Render
+- In Render dashboard, go to your service → Environment → Add Environment Variables:
+env
+DEBUG=False
+SECRET_KEY=your-generated-secret-key
+ALLOWED_HOSTS=your-app-name.onrender.com,localhost,127.0.0.1
+DB_NAME=your_render_db_name
+DB_USER=your_render_db_user
+DB_PASSWORD=your_render_db_password
+DB_HOST=your_render_db_host
+DB_PORT=5432
+
+
+## Step 4: Set up PostgreSQL on Render
+- Go to Render Dashboard → "New +" → "PostgreSQL"
+
+- Configure database:
+
+- Name: ecommerce-db
+
+- Database: ecommerce_db
+
+- User: your preferred username
+
+- Plan: Free or paid depending on needs
+
+- Note the connection string and update your environment variables
+
+## Step 5: Finalize Deployment
+- Run migrations on production:
+```bash
+# If using shell access
+python manage.py migrate
+```
+
+# Or through Render dashboard if available
+- Create superuser:
+```bash
+python manage.py createsuperuser
+Verify deployment by visiting your Render URL
+```
+
+
+## 3. Post-Deployment Checklist
+- Application is accessible at your Render URL
+
+- Database migrations completed successfully
+
+- Static files are being served correctly
+
+- Admin interface is accessible
+
+- API endpoints are working
+
+- Environment variables are properly set
+
+- SSL certificate is active (automatic on Render)
+
+### Monitoring and Logs
+- Access logs through Render dashboard
+
+- Set up health checks in Render service settings
+
+- Monitor performance through Render metrics

@@ -1,4 +1,3 @@
-# products/admin.py
 from django.contrib import admin
 from .models import Product, Category, Brand, ProductImage, ProductReview, ProductActivity, Wishlist
 from django.utils.html import format_html
@@ -87,16 +86,22 @@ class ProductAdmin(admin.ModelAdmin):
         return TemplateResponse(request, 'admin/products/product_gallery.html', context)
     
     
+    
     def image_preview(self, obj):
-        # Get the primary image or first available image
-        primary_image = obj.images.filter(is_primary=True).first()
-        if not primary_image:
-            primary_image = obj.images.first()
+        # Get the first available image (primary or any)
+        image = obj.images.filter(is_primary=True).first() or obj.images.first()
         
-        if primary_image and primary_image.image:
-            return format_html('<img src="{}" style="max-height: 50px; max-width: 50px; border-radius: 4px;" />', primary_image.image.url)
-        return "No Image"
+        if image and image.image:
+            return format_html(
+                '<img src="{}" style="max-height: 50px; max-width: 50px; border-radius: 4px; object-fit: cover;" />', 
+                image.image.url
+            )
+        # Return a nice placeholder if no image
+        return format_html(
+            '<div style="width: 50px; height: 50px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 10px;">No Image</div>'
+        )
     image_preview.short_description = 'Image'
+
     
     def save_model(self, request, obj, form, change):
         if not obj.pk:
